@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/mcp-streamable-server.js",
+      "src": "dist/mcp-http-server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/dist/mcp-streamable-server.js"
+      "dest": "/dist/mcp-http-server.js"
     }
   ]
 }
