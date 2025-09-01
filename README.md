@@ -1,157 +1,226 @@
 # Firestore MCP Server
 
-Un servidor MCP (Model Context Protocol) que permite a asistentes de IA como Claude Code, Gemini CLI y otros acceder y consultar datos de Firestore de manera segura.
+A Model Context Protocol (MCP) server for querying Firestore databases, with support for both legacy SSE transport and modern Streamable HTTP transport (Vercel compatible).
 
-## Características
+## Features
 
-- **Lista de colecciones**: Obtén todas las colecciones disponibles en tu base de datos
-- **Inspección de esquemas**: Analiza la estructura y tipos de datos de los documentos
-- **Consultas complejas**: Realiza filtros, ordenación y agregaciones avanzadas
-- **Solo lectura**: Configurado con permisos de solo lectura para máxima seguridad
+- 🔥 **Firestore Integration**: Query collections, inspect schemas, and run aggregations
+- 📡 **Multiple Transport Options**: SSE (legacy) and Streamable HTTP (modern)
+- ☁️ **Vercel Compatible**: Ready for serverless deployment  
+- 🚀 **Express.js Based**: RESTful API with health checks
+- 🔒 **Secure**: Server-side authentication only
 
-## Herramientas disponibles
+## Quick Start
+
+### Prerequisites
+
+1. **Firebase Service Account**: Get your service account JSON from Firebase Console
+2. **Environment Variable**: Set `FIREBASE_SERVICE_ACCOUNT` with the complete JSON
+
+### Installation & Development
+
+```bash
+# Install dependencies
+npm install
+
+# Development (Streamable HTTP - Vercel compatible)
+npm run dev
+
+# Development (SSE - Traditional)
+npm run dev:sse
+
+# Development (STDIO - Local only)
+npm run dev:stdio
+
+# Build
+npm run build
+
+# Production
+npm start
+```
+
+### Environment Setup
+
+```bash
+# .env file
+FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"your-project",...}'
+PORT=3000
+```
+
+## Transport Modes
+
+### 1. **Streamable HTTP** (Default - Vercel Compatible)
+- **File**: `src/mcp-streamable-server.ts`
+- **Use Case**: Serverless deployment (Vercel, Netlify, etc.)
+- **Endpoints**: 
+  - `POST /mcp` - JSON-RPC messages
+  - `GET /mcp` - SSE streams (optional)
+  - `DELETE /mcp` - Session termination
+- **Benefits**: Stateless, scalable, works with serverless
+
+### 2. **SSE Transport** (Legacy)
+- **File**: `src/mcp-http-server.ts` 
+- **Use Case**: Traditional servers (Railway, Render, etc.)
+- **Endpoints**: `POST /mcp` - SSE connection
+- **Benefits**: Real-time streaming, persistent connections
+
+### 3. **STDIO Transport**
+- **File**: `src/index.ts`
+- **Use Case**: Local development, direct MCP client integration
+- **Benefits**: Lowest latency, direct pipe communication
+
+## MCP Tools Available
 
 ### 1. `list_collections`
-Lista todas las colecciones en la base de datos Firestore.
+Lists all collections in the Firestore database.
 
-**Parámetros**: Ninguno
-
-**Ejemplo de uso**:
-```
-¿Qué colecciones tienes disponibles?
+```json
+{
+  "name": "list_collections",
+  "arguments": {}
+}
 ```
 
 ### 2. `inspect_collection_schema`
-Analiza la estructura de los documentos en una colección muestreando documentos.
+Analyzes document structure by sampling documents from a collection.
 
-**Parámetros**:
-- `collectionPath` (string, requerido): Ruta de la colección a inspeccionar
-- `sampleSize` (number, opcional): Número de documentos a muestrear (predeterminado: 10)
-
-**Ejemplo de uso**:
-```
-Inspecciona el esquema de la colección "usuarios"
+```json
+{
+  "name": "inspect_collection_schema", 
+  "arguments": {
+    "collectionPath": "users",
+    "sampleSize": 10
+  }
+}
 ```
 
 ### 3. `query_firestore`
-Ejecuta consultas complejas con filtros, ordenación y agregaciones.
+Execute complex queries with filtering, ordering, and aggregation.
 
-**Parámetros**:
-- `collectionPath` (string, requerido): Ruta de la colección a consultar
-- `filters` (array, opcional): Condiciones de filtro
-- `orderBy` (array, opcional): Campos para ordenar
-- `limit` (number, opcional): Número máximo de documentos
-- `aggregation` (object, opcional): Operaciones de agregación (count, sum, avg)
-
-**Ejemplos de uso**:
+```json
+{
+  "name": "query_firestore",
+  "arguments": {
+    "collectionPath": "users",
+    "filters": [
+      {"field": "age", "operator": ">=", "value": 18}
+    ],
+    "orderBy": [
+      {"field": "createdAt", "direction": "desc"}
+    ],
+    "limit": 10,
+    "aggregation": {
+      "count": true,
+      "sum": "points",
+      "avg": "score"
+    }
+  }
+}
 ```
-¿Qué cliente hace más apuestas?
-¿Cuántos agentes se crearon el último mes?
-¿Cuál es la cantidad total apostada este mes?
-```
 
-## Instalación
+## Deployment
 
-1. Clona o descarga este proyecto
-2. Instala las dependencias:
+### Vercel (Recommended for Streamable HTTP)
+
+1. **Setup Vercel**:
    ```bash
-   npm install
-   ```
-3. Configura las credenciales de Google Cloud:
-   ```bash
-   cp .env.example .env
-   # Edita .env con el JSON completo de tu service account
-   ```
-4. Construye el proyecto:
-   ```bash
-   npm run build
+   npm i -g vercel
+   vercel login
    ```
 
-## Configuración
+2. **Configure Environment**:
+   ```bash
+   vercel env add FIREBASE_SERVICE_ACCOUNT
+   # Paste your complete Firebase service account JSON
+   ```
 
-### Service Account de Google Cloud
+3. **Deploy**:
+   ```bash
+   vercel --prod
+   ```
 
-1. Ve a la [Google Cloud Console](https://console.cloud.google.com/)
-2. Selecciona tu proyecto
-3. Ve a "IAM & Admin" > "Service Accounts"
-4. Crea una nueva service account con permisos de solo lectura a Firestore
-5. Descarga el archivo JSON de credenciales
-6. Copia el contenido completo del JSON en la variable `FIREBASE_SERVICE_ACCOUNT` en tu archivo `.env`
-   - Importante: El JSON debe estar en una sola línea y escapado correctamente
-   - Puedes usar herramientas online para minimizar el JSON si es necesario
+### Railway/Render (For SSE Transport)
 
-### Configuración en Claude Code
+1. **Connect GitHub repository**
+2. **Set environment variables**:
+   - `FIREBASE_SERVICE_ACCOUNT`: Your service account JSON
+   - `PORT`: Will be set automatically
+3. **Build Command**: `npm run build`
+4. **Start Command**: `npm run start:sse` (for SSE) or `npm start` (for Streamable HTTP)
 
-Agrega el servidor a tu configuración de Claude Code:
+## MCP Client Configuration
+
+### Claude Code (Local)
+Add to your MCP settings:
 
 ```json
 {
   "mcpServers": {
     "firestore": {
       "command": "node",
-      "args": ["/ruta/completa/al/proyecto/firestore-mcp-server/dist/index.js"],
+      "args": ["/path/to/dist/index.js"],
       "env": {
-        "FIREBASE_SERVICE_ACCOUNT": "{\"type\":\"service_account\",\"project_id\":\"tu-project-id\",\"private_key_id\":\"...\",\"private_key\":\"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n\",\"client_email\":\"tu-service-account@tu-project.iam.gserviceaccount.com\",\"client_id\":\"...\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\":\"...\"}"
+        "FIREBASE_SERVICE_ACCOUNT": "your-service-account-json"
       }
     }
   }
 }
 ```
 
-## Uso
-
-Una vez configurado, puedes hacer preguntas como:
-
-- "¿Qué colecciones tienes disponibles?"
-- "Inspecciona el esquema de la colección 'usuarios'"
-- "¿Cuántos documentos hay en la colección 'apuestas'?"
-- "Muéstrame los últimos 10 agentes creados"
-- "¿Cuál es la suma total de las apuestas de este mes?"
-- "Encuentra todos los usuarios activos ordenados por fecha de creación"
-
-## Estructura del proyecto
-
-```
-firestore-mcp-server/
-├── src/
-│   └── index.ts          # Servidor MCP principal
-├── dist/                 # Código compilado
-├── package.json
-├── tsconfig.json
-├── .env.example
-└── README.md
+### Claude Code (Remote)
+```json
+{
+  "mcpServers": {
+    "firestore": {
+      "url": "https://your-deployment.vercel.app/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
 ```
 
-## Desarrollo
+## API Endpoints
 
-Para desarrollo local:
+- **GET /** - Server info
+- **GET /health** - Health check  
+- **POST /mcp** - MCP JSON-RPC messages (Streamable HTTP)
+- **GET /mcp** - SSE stream (Streamable HTTP)
+- **DELETE /mcp** - Session termination (Streamable HTTP)
 
-```bash
-npm run dev
-```
+## Migration Guide
 
-Para compilar:
+### From SSE to Streamable HTTP
 
-```bash
-npm run build
-```
+1. **Update scripts**: Use `npm run dev` instead of `npm run dev:sse`
+2. **Vercel deployment**: Use `vercel.json` configuration included
+3. **Client compatibility**: Most MCP clients support both transports
 
-Para ejecutar la versión compilada:
+### Why Streamable HTTP?
 
-```bash
-npm start
-```
+- ✅ **Serverless Compatible**: Works with Vercel, Netlify, CloudFlare
+- ✅ **Better Error Handling**: More robust than SSE
+- ✅ **Future Proof**: MCP specification standard since March 2025
+- ✅ **Lower Costs**: Scales to zero on serverless platforms
 
-## Seguridad
+## Troubleshooting
 
-- El servidor solo tiene permisos de lectura
-- Todas las conexiones requieren autenticación válida de Google Cloud
-- Las credenciales se manejan a través de variables de entorno
-- No se exponen credenciales en el código
+### Common Issues
 
-## Compatibilidad
+1. **"Transport connection failed"**
+   - Check `FIREBASE_SERVICE_ACCOUNT` is valid JSON
+   - Verify Firestore permissions
 
-Compatible con el estándar MCP (Model Context Protocol) y probado con:
-- Claude Code
-- Gemini CLI
-- Otros clientes MCP estándar
+2. **"CORS errors"**
+   - Server is configured with open CORS (`origin: '*'`)
+   - Check if client sends proper headers
+
+3. **"Session errors" (Streamable HTTP)**
+   - Sessions are managed automatically
+   - Delete requests clear session state
+
+### Logs
+Check server logs for detailed error messages. All errors are logged with context.
+
+## License
+
+MIT License - see LICENSE file for details.
