@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server for querying Firestore databases, with sup
 - 🚀 **Express.js Based**: RESTful API with health checks
 - 🔒 **Secure**: Server-side authentication only
 
+
 ## Quick Start
 
 ### Prerequisites
