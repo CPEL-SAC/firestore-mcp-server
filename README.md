@@ -1,103 +1,73 @@
 # Firestore MCP Server
 
-A Model Context Protocol (MCP) server for querying Firestore databases, with support for both legacy SSE transport and modern Streamable HTTP transport (Vercel compatible).
+An MCP (Model Context Protocol) server that exposes a Firestore database as a set of read-only tools. The project ships three transports (Streamable HTTP, SSE, STDIO) so it can run locally, on traditional servers, or in serverless environments such as Vercel.
 
-## Features
+## Highlights
+- Firestore-aware tools to list collections, inspect sampled schemas, and run filtered/aggregated queries
+- Safe serialization for Firestore primitives (timestamps, GeoPoint, references) to avoid JSON errors
+- Clean MCP server bootstrap shared across STDIO, Streamable HTTP, and SSE transports
+- Ready-to-use scripts for development (`npm run dev*`) and production (`npm start`, `npm run start:*`)
+- Works with Codex CLI, Claude CLI, Gemini CLI, or any MCP-compatible client
 
-- 🔥 **Firestore Integration**: Query collections, inspect schemas, and run aggregations
-- 📡 **Multiple Transport Options**: SSE (legacy) and Streamable HTTP (modern)
-- ☁️ **Vercel Compatible**: Ready for serverless deployment  
-- 🚀 **Express.js Based**: RESTful API with health checks
-- 🔒 **Secure**: Server-side authentication only
+## Prerequisites
+1. **Node.js 18+** (or the runtime required by your hosting provider)
+2. **Firebase service account JSON** with Firestore access
+3. Environment variable `FIREBASE_SERVICE_ACCOUNT` containing the JSON string (single line or escaped)
 
-
-## Quick Start
-
-### Prerequisites
-
-1. **Firebase Service Account**: Get your service account JSON from Firebase Console
-2. **Environment Variable**: Set `FIREBASE_SERVICE_ACCOUNT` with the complete JSON
-
-### Installation & Development
-
-```bash
-# Install dependencies
-npm install
-
-# Development (Streamable HTTP - Vercel compatible)
-npm run dev
-
-# Development (SSE - Traditional)
-npm run dev:sse
-
-# Development (STDIO - Local only)
-npm run dev:stdio
-
-# Build
-npm run build
-
-# Production
-npm start
-```
-
-### Environment Setup
-
-```bash
-# .env file
+`.env` example:
+```env
 FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"your-project",...}'
 PORT=3000
 ```
 
+## Install & Run
+```bash
+npm install
+
+# Streamable HTTP (recommended for remote/serverless)
+npm run dev        # hot reload via tsx
+npm start          # production build (uses dist/mcp-streamable-server.js)
+
+# SSE HTTP (legacy long-lived connections)
+npm run dev:sse
+npm run start:sse
+
+# STDIO (local CLI integrations)
+npm run dev:stdio
+npm run start:stdio
+
+# Build TypeScript -> dist/
+npm run build
+```
+
 ## Transport Modes
+### Streamable HTTP (recommended)
+- File: `src/mcp-streamable-server.ts`
+- Endpoints:
+  - `GET /health` – readiness probe
+  - `GET|POST|DELETE /mcp` – handled by `StreamableHTTPServerTransport`
+- Stateless by default and deployable to Vercel, Netlify, Cloudflare, etc.
 
-### 1. **Streamable HTTP** (Default - Vercel Compatible)
-- **File**: `src/mcp-streamable-server.ts`
-- **Use Case**: Serverless deployment (Vercel, Netlify, etc.)
-- **Endpoints**: 
-  - `POST /mcp` - JSON-RPC messages
-  - `GET /mcp` - SSE streams (optional)
-  - `DELETE /mcp` - Session termination
-- **Benefits**: Stateless, scalable, works with serverless
+### Server-Sent Events (legacy)
+- File: `src/mcp-http-server.ts`
+- Workflow:
+  - `GET /mcp` opens the SSE stream and returns the session id
+  - `POST /mcp?sessionId=...` sends JSON-RPC messages
+  - `DELETE /mcp?sessionId=...` closes the session
+- Suitable for platforms such as Railway or Render that keep connections open.
 
-### 2. **SSE Transport** (Legacy)
-- **File**: `src/mcp-http-server.ts` 
-- **Use Case**: Traditional servers (Railway, Render, etc.)
-- **Endpoints**: `POST /mcp` - SSE connection
-- **Benefits**: Real-time streaming, persistent connections
+### STDIO (local only)
+- File: `src/index.ts`
+- Exposes the same toolset over standard I/O; ideal for local CLI usage or tests.
 
-### 3. **STDIO Transport**
-- **File**: `src/index.ts`
-- **Use Case**: Local development, direct MCP client integration
-- **Benefits**: Lowest latency, direct pipe communication
+## MCP Tools
+| Tool | Purpose | Notes |
+| ---- | ------- | ----- |
+| `list_collections` | Lists all top-level collections. | Returns a newline-separated list. |
+| `inspect_collection_schema` | Samples documents (default 10) and reports field types and examples. | Handles nested objects; Firestore special types are serialized safely. |
+| `query_firestore` | Runs filters, ordering, limits, and aggregations. | Aggregations (`sum`, `avg`) ignore non-numeric entries and the response reports ignored counts.
 
-## MCP Tools Available
-
-### 1. `list_collections`
-Lists all collections in the Firestore database.
-
-```json
-{
-  "name": "list_collections",
-  "arguments": {}
-}
-```
-
-### 2. `inspect_collection_schema`
-Analyzes document structure by sampling documents from a collection.
-
-```json
-{
-  "name": "inspect_collection_schema", 
-  "arguments": {
-    "collectionPath": "users",
-    "sampleSize": 10
-  }
-}
-```
-
-### 3. `query_firestore`
-Execute complex queries with filtering, ordering, and aggregation.
-
+Example `query_firestore` call:
 ```json
 {
   "name": "query_firestore",
@@ -119,109 +89,63 @@ Execute complex queries with filtering, ordering, and aggregation.
 }
 ```
 
-## Deployment
-
-### Vercel (Recommended for Streamable HTTP)
-
-1. **Setup Vercel**:
-   ```bash
-   npm i -g vercel
-   vercel login
-   ```
-
-2. **Configure Environment**:
-   ```bash
-   vercel env add FIREBASE_SERVICE_ACCOUNT
-   # Paste your complete Firebase service account JSON
-   ```
-
-3. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
-
-### Railway/Render (For SSE Transport)
-
-1. **Connect GitHub repository**
-2. **Set environment variables**:
-   - `FIREBASE_SERVICE_ACCOUNT`: Your service account JSON
-   - `PORT`: Will be set automatically
-3. **Build Command**: `npm run build`
-4. **Start Command**: `npm run start:sse` (for SSE) or `npm start` (for Streamable HTTP)
-
-## MCP Client Configuration
-
-### Claude Code (Local)
-Add to your MCP settings:
-
+## Connecting MCP Clients
+### Codex CLI (STDIO)
 ```json
 {
   "mcpServers": {
     "firestore": {
       "command": "node",
-      "args": ["/path/to/dist/index.js"],
+      "args": ["/absolute/path/to/dist/index.js"],
       "env": {
-        "FIREBASE_SERVICE_ACCOUNT": "your-service-account-json"
+        "FIREBASE_SERVICE_ACCOUNT": "<service-account-json>"
       }
     }
   }
 }
 ```
 
-### Claude Code (Remote)
+### Codex/Claude/Gemini CLI (remote Streamable HTTP)
+Point the client at the deployed endpoint and set `transport` to `streamable-http`:
 ```json
 {
   "mcpServers": {
     "firestore": {
-      "url": "https://your-deployment.vercel.app/mcp",
+      "url": "https://your-app.example.com/mcp",
       "transport": "streamable-http"
     }
   }
 }
 ```
 
-## API Endpoints
+### Notes
+- The server is read-only; mutations must be implemented separately if required.
+- `FIREBASE_SERVICE_ACCOUNT` must remain private—configure it in your hosting dashboard or secrets manager.
 
-- **GET /** - Server info
-- **GET /health** - Health check  
-- **POST /mcp** - MCP JSON-RPC messages (Streamable HTTP)
-- **GET /mcp** - SSE stream (Streamable HTTP)
-- **DELETE /mcp** - Session termination (Streamable HTTP)
+## Deployment
+### Vercel (Streamable HTTP)
+1. `npm i -g vercel`
+2. `vercel login`
+3. `vercel env add FIREBASE_SERVICE_ACCOUNT`
+4. `npm run build`
+5. `vercel --prod`
 
-## Migration Guide
+### Railway/Render (SSE or Streamable)
+- Build command: `npm run build`
+- Start command: choose `npm start` (Streamable) or `npm run start:sse`
+- Environment: set `FIREBASE_SERVICE_ACCOUNT`
 
-### From SSE to Streamable HTTP
-
-1. **Update scripts**: Use `npm run dev` instead of `npm run dev:sse`
-2. **Vercel deployment**: Use `vercel.json` configuration included
-3. **Client compatibility**: Most MCP clients support both transports
-
-### Why Streamable HTTP?
-
-- ✅ **Serverless Compatible**: Works with Vercel, Netlify, CloudFlare
-- ✅ **Better Error Handling**: More robust than SSE
-- ✅ **Future Proof**: MCP specification standard since March 2025
-- ✅ **Lower Costs**: Scales to zero on serverless platforms
+## API Summary
+- `GET /` – service metadata
+- `GET /health` – health check
+- Streamable HTTP: `GET|POST|DELETE /mcp`
+- SSE: `GET /mcp`, `POST /mcp?sessionId=...`, `DELETE /mcp?sessionId=...`
 
 ## Troubleshooting
-
-### Common Issues
-
-1. **"Transport connection failed"**
-   - Check `FIREBASE_SERVICE_ACCOUNT` is valid JSON
-   - Verify Firestore permissions
-
-2. **"CORS errors"**
-   - Server is configured with open CORS (`origin: '*'`)
-   - Check if client sends proper headers
-
-3. **"Session errors" (Streamable HTTP)**
-   - Sessions are managed automatically
-   - Delete requests clear session state
-
-### Logs
-Check server logs for detailed error messages. All errors are logged with context.
+- **Missing credentials**: ensure `FIREBASE_SERVICE_ACCOUNT` is defined and valid JSON.
+- **Non-numeric aggregation results**: the response indicates how many documents were ignored.
+- **Session errors**: for SSE include the `sessionId` query parameter; for Streamable HTTP ensure clients send the `Mcp-Session-Id` header when required.
+- **CORS**: open CORS is enabled by default; tighten if you control the client origin.
 
 ## License
-
-MIT License - see LICENSE file for details.
+MIT – see `LICENSE` for details.

@@ -1,74 +1,43 @@
-# 🚄 Guía: Desplegar servidor MCP verdadero en Railway
+# Guia de despliegue en Railway
 
-## 🎯 ¿Por qué Railway?
+Railway es una buena opcion para ejecutar el servidor MCP porque ofrece un plan gratuito con credito mensual, permite conexiones persistentes y facilita la gestion de variables de entorno.
 
-- ✅ **Gratuito**: $5 de crédito mensual
-- ✅ **Conexiones persistentes**: Ideal para MCP
-- ✅ **Siempre activo**: No se duerme
-- ✅ **Fácil despliegue**: Connect con GitHub
-- ✅ **Variables de entorno**: Manejo seguro
+## Pasos rapidos
+1. Crea una cuenta en https://railway.app e inicia sesion con GitHub.
+2. Crea un proyecto nuevo y elige **Deploy from GitHub repo** apuntando a este repositorio.
+3. Configura las variables de entorno en la pestana **Variables**:
+   - `FIREBASE_SERVICE_ACCOUNT`: pega el JSON completo del service account.
+4. Railway ejecutara `npm install`, `npm run build` y la start command que definas.
 
-## 📋 Pasos para desplegar:
+## Start commands sugeridos
+- **Streamable HTTP (recomendado)**: `npm start`
+- **SSE legado**: `npm run start:sse`
 
-### 1. Crear cuenta en Railway
-1. Ve a: https://railway.app
-2. Regístrate con GitHub
-3. Obtienes $5 gratis cada mes
+Railway suministra el puerto mediante `process.env.PORT`, ya manejado en el codigo.
 
-### 2. Conectar el proyecto
-1. **New Project** → **Deploy from GitHub repo**
-2. Selecciona tu repositorio `firestore-mcp-server`
-3. Railway detectará automáticamente el Dockerfile
-
-### 3. Configurar variables de entorno
-En el dashboard de Railway:
-1. Ve a **Variables**
-2. Agrega: `FIREBASE_SERVICE_ACCOUNT`
-3. Valor: Tu JSON completo del service account
-
-### 4. Desplegar
-- Railway desplegará automáticamente
-- Esperará unos 2-3 minutos
-- Te dará una URL como: `https://tu-proyecto.railway.app`
-
-## 🔗 Comando final para Claude Code:
-
+## Verificacion
 ```bash
-claude mcp add https://tu-proyecto.railway.app/mcp
-```
-
-## 🧪 Verificar que funciona:
-
-```bash
-# Health check
 curl https://tu-proyecto.railway.app/health
-
-# Debería responder:
-# {"status":"healthy","service":"firestore-mcp-server","timestamp":"..."}
+# -> {"status":"healthy","service":"firestore-mcp-server",...}
 ```
 
-## 📡 Endpoints del servidor MCP:
+## Integracion con clientes MCP
+Usa la URL que entrega Railway (por ejemplo `https://tu-proyecto.railway.app/mcp`) y configura tu cliente con transporte `streamable-http`. Ejemplo para Claude/Codex/Gemini CLI:
+```json
+{
+  "mcpServers": {
+    "firestore": {
+      "url": "https://tu-proyecto.railway.app/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
 
-- **Health**: `GET /health`
-- **MCP Server**: `POST /mcp` (Server-Sent Events)
-- **Root**: `GET /` (Info básica)
+## Problemas comunes
+- **Fallo en el build**: revisa `package.json` y los logs de Railway.
+- **Credenciales invalidas**: confirma que el JSON de `FIREBASE_SERVICE_ACCOUNT` es correcto.
+- **Errores 4xx al llamar /mcp**: verifica que el cliente este enviando los encabezados/campos requeridos (`Mcp-Session-Id` en peticiones posteriores).
 
-## ⚙️ Características del servidor:
-
-- ✅ Protocolo MCP estándar
-- ✅ Server-Sent Events (SSE)
-- ✅ Express.js con CORS
-- ✅ Conexiones persistentes
-- ✅ Compatible con `claude mcp add`
-
-## 🔧 Si algo falla:
-
-1. **Error de build**: Verifica que todas las dependencias estén en `package.json`
-2. **Error de variables**: Asegúrate que `FIREBASE_SERVICE_ACCOUNT` esté bien configurado
-3. **Error de conexión**: Railway asigna automáticamente el puerto via `process.env.PORT`
-
-## 💰 Costos:
-
-- **Gratuito**: $5 de crédito mensual
-- **Uso típico de MCP**: ~$0.10-0.50/mes
-- **Si se agota**: $5/mes por servicio adicional
+## Costos
+El plan gratuito incluye 5 USD/mes en credito; un uso tipico del servidor MCP queda muy por debajo de ese limite. Si superas el credito, Railway cobra segun su plan base.
