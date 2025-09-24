@@ -130,10 +130,16 @@ Point the client at the deployed endpoint and set `transport` to `streamable-htt
 4. `npm run build`
 5. `vercel --prod`
 
-### Railway/Render (SSE or Streamable)
+### Render (Streamable HTTP)
+- Usa el blueprint `render.yaml` o configuralo manualmente:
+  - Build command: `npm run build`
+  - Start command: `npm start`
+  - Env var obligatoria: `FIREBASE_SERVICE_ACCOUNT`
+
+### Railway (SSE o Streamable)
 - Build command: `npm run build`
-- Start command: choose `npm start` (Streamable) or `npm run start:sse`
-- Environment: set `FIREBASE_SERVICE_ACCOUNT`
+- Start command: `npm start` (Streamable) o `npm run start:sse` (SSE)
+- Env var: `FIREBASE_SERVICE_ACCOUNT`
 
 ## API Summary
 - `GET /` – service metadata
@@ -149,3 +155,4 @@ Point the client at the deployed endpoint and set `transport` to `streamable-htt
 
 ## License
 MIT – see `LICENSE` for details.
+

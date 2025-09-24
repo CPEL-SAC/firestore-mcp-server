@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: firestore-mcp-server
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
